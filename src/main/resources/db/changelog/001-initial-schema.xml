@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="001-create-transactions-table" author="fraud-team">
+        <createTable tableName="transactions">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="transaction_id" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uc_transaction_id"/>
+            </column>
+            <column name="customer_id" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="merchant_id" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="is_flagged" type="BOOLEAN" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="risk_score" type="DECIMAL(5,2)"/>
+            <column name="fraud_rules_triggered" type="VARCHAR(1000)"/>
+            <column name="transaction_timestamp" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-create-fraud-rules-table" author="fraud-team">
+        <createTable tableName="fraud_rules">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="rule_name" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uc_rule_name"/>
+            </column>
+            <column name="description" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rule_expression" type="LONGTEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="risk_score" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValue="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-indexes" author="fraud-team">
+        <createIndex indexName="idx_transactions_customer_id" tableName="transactions">
+            <column name="customer_id"/>
+        </createIndex>
+        <createIndex indexName="idx_transactions_merchant_id" tableName="transactions">
+            <column name="merchant_id"/>
+        </createIndex>
+        <createIndex indexName="idx_transactions_is_flagged" tableName="transactions">
+            <column name="is_flagged"/>
+        </createIndex>
+        <createIndex indexName="idx_transactions_category" tableName="transactions">
+            <column name="category"/>
+        </createIndex>
+        <createIndex indexName="idx_transactions_timestamp" tableName="transactions">
+            <column name="transaction_timestamp"/>
+        </createIndex>
+        <createIndex indexName="idx_fraud_rules_is_active" tableName="fraud_rules">
+            <column name="is_active"/>
+        </createIndex>
+        <createIndex indexName="idx_fraud_rules_priority" tableName="fraud_rules">
+            <column name="priority"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="004-insert-default-fraud-rules" author="fraud-team">
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="HIGH_AMOUNT_RULE"/>
+            <column name="description" value="Flags transactions with amount exceeding 5000"/>
+            <column name="category" value="ONLINE_PURCHASE"/>
+            <column name="rule_expression" value="amount > 5000"/>
+            <column name="risk_score" value="25.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="1"/>
+        </insert>
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="UNUSUAL_TIME_RULE"/>
+            <column name="description" value="Flags transactions made between 2 AM and 5 AM"/>
+            <column name="category" value="ONLINE_PURCHASE"/>
+            <column name="rule_expression" value="hour(timestamp) BETWEEN 2 AND 5"/>
+            <column name="risk_score" value="15.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="2"/>
+        </insert>
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="MULTIPLE_TRANSACTIONS_RULE"/>
+            <column name="description" value="Flags multiple transactions within 1 hour from same customer"/>
+            <column name="category" value="ONLINE_PURCHASE"/>
+            <column name="rule_expression" value="count(txn_per_hour) > 5"/>
+            <column name="risk_score" value="20.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="3"/>
+        </insert>
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="INTERNATIONAL_TRANSACTION_RULE"/>
+            <column name="description" value="Flags international transactions"/>
+            <column name="category" value="INTERNATIONAL"/>
+            <column name="rule_expression" value="category == INTERNATIONAL"/>
+            <column name="risk_score" value="10.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="4"/>
+        </insert>
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="UNUSUAL_MERCHANT_RULE"/>
+            <column name="description" value="Flags transactions with merchants not previously used"/>
+            <column name="category" value="ONLINE_PURCHASE"/>
+            <column name="rule_expression" value="merchant NOT IN (previous_merchants)"/>
+            <column name="risk_score" value="18.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="5"/>
+        </insert>
+        <insert tableName="fraud_rules">
+            <column name="rule_name" value="CRYPTOCURRENCY_RULE"/>
+            <column name="description" value="Flags cryptocurrency transactions"/>
+            <column name="category" value="CRYPTOCURRENCY"/>
+            <column name="rule_expression" value="category == CRYPTOCURRENCY"/>
+            <column name="risk_score" value="30.0"/>
+            <column name="is_active" value="true"/>
+            <column name="priority" value="6"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
